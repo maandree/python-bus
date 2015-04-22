@@ -66,6 +66,13 @@ class Bus:
         self.bus = None
     
     
+    def __del__(self):
+        '''
+        Destructor
+        '''
+        self.close()
+    
+    
     def create(self, flags : int = 0) -> str:
         '''
         Create the bus
