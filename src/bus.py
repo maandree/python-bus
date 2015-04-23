@@ -134,8 +134,8 @@ class Bus:
         
         @param  message:str  The message to write, may not be longer than 2047 bytes after UTF-8 encoding
         '''
-        from native_bus import bus_write
-        if bus_write(self.bus, message) == -1:
+        from native_bus import bus_write_wrapped
+        if bus_write_wrapped(self.bus, message) == -1:
             raise self.__oserror()
     
     
@@ -143,7 +143,6 @@ class Bus:
         '''
         Listen (in a loop, forever) for new message on a bus
         
-        @param   bus       Bus information
         @param   callback  Function to call when a message is received, the
                            input parameters will be the read message and
                            `user_data` from the function's [Bus.read] parameter
@@ -156,8 +155,8 @@ class Bus:
                              -1:  an error has occurred
         @param  user_data  See description of `callback`
         '''
-        from native_bus import bus_read
-        if bus_read(self.bus, callback, user_data) == -1:
+        from native_bus import bus_read_wrapped
+        if bus_read_wrapped(self.bus, callback, user_data) == -1:
             raise self.__oserror()
     
     
