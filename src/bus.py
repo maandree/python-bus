@@ -120,7 +120,10 @@ class Bus:
         '''
         Close the bus
         '''
-        from native_bus import bus_close_wrapped, bus_deallocate
+        try:
+            from native_bus import bus_close_wrapped, bus_deallocate
+        except:
+            return
         if self.bus is not None:
             if bus_close_wrapped(self.bus) == -1:
                 raise self.__oserror()
@@ -153,6 +156,7 @@ class Bus:
                              0:  stop listening
                              1:  continue listening
                              -1:  an error has occurred
+                           NB! The received message will not be decoded from UTF-8
         @param  user_data  See description of `callback`
         '''
         from native_bus import bus_read_wrapped

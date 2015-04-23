@@ -200,6 +200,12 @@ def bus_write_wrapped(bus : int, message : str) -> int:
     return bus_write(<long>bus, cmessage)
 
 
+cdef int bus_callback_wrapper(const char *message, user_data):
+    cdef bytes bs = message
+    callback, user_data = tuple(<object>user_data)
+    return <int>callback(bs, user_data)
+
+
 def bus_read_wrapped(bus : int, callback : callable, user_data) -> int:
     '''
     Listen (in a loop, forever) for new message on a bus
@@ -217,5 +223,6 @@ def bus_read_wrapped(bus : int, callback : callable, user_data) -> int:
                        -1:  an error has occurred
     @return           0 on success, -1 on error
     '''
-    return bus_read(<long>bus, <int (*)(const char *, void *)><void *>callback, <void *>user_data)
+    user = (callback, user_data)
+    return bus_read(<long>bus, <int (*)(const char *, void *)>&bus_callback_wrapper, <void *>user)
 
