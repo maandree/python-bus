@@ -148,7 +148,7 @@ class Bus:
         
         @param   callback  Function to call when a message is received, the
                            input parameters will be the read message and
-                           `user_data` from the function's [Bus.read] parameter
+                           `user_data` from the function's [`Bus.read`] parameter
                            with the same name. The message must have been parsed
                            or copied when `callback` returns as it may be over
                            overridden after that time. `callback` should
@@ -156,6 +156,12 @@ class Bus:
                              0:  stop listening
                              1:  continue listening
                              -1:  an error has occurred
+                           However, the function [`Bus.read`] will invoke
+                           `callback` with `message` set to `None` one time
+                           directly after it has started listening on the bus.
+                           This is to the the program now it can safely continue
+                           with any action that requires that the programs is
+                           listening on the bus.
                            NB! The received message will not be decoded from UTF-8
         @param  user_data  See description of `callback`
         '''
