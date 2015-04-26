@@ -201,9 +201,13 @@ def bus_write_wrapped(bus : int, message : str) -> int:
 
 
 cdef int bus_callback_wrapper(const char *message, user_data):
-    cdef bytes bs = message
+    cdef bytes bs
     callback, user_data = tuple(<object>user_data)
-    return <int>callback(bs, user_data)
+    if message is NULL:
+        return <int>callback(None, user_data)
+    else:
+        bs = message
+        return <int>callback(bs, user_data)
 
 
 def bus_read_wrapped(bus : int, callback : callable, user_data) -> int:
