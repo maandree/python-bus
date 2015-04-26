@@ -139,7 +139,7 @@ def bus_create_wrapped(file : str, flags : int) -> str:
     r = bus_create(<char *>NULL, flags, &ofile)
     if r == 0:
         bs = ofile
-        return bs.encode('utf-8', 'strict')
+        return bs.decode('utf-8', 'strict')
     return None
 
 
