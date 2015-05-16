@@ -89,9 +89,9 @@ class Bus:
         @return  :str           The pathname of the bus
         '''
         from native_bus import bus_create_wrapped
-        self.pathname = bus_create_wrapped(self.pathname, flags)
+        (self.pathname, e) = bus_create_wrapped(self.pathname, flags)
         if self.pathname is None:
-            raise self.__oserror()
+            raise self.__oserror(e)
         return self.pathname
     
     
@@ -100,8 +100,9 @@ class Bus:
         Remove the bus
         '''
         from native_bus import bus_unlink_wrapped
-        if bus_unlink_wrapped(self.pathname) == -1:
-            raise self.__oserror()
+        (r, e) = bus_unlink_wrapped(self.pathname)
+        if r == -1:
+            raise self.__oserror(e)
     
     
     def open(self, flags : int = 0):
@@ -112,14 +113,16 @@ class Bus:
         '''
         from native_bus import bus_close_wrapped, bus_allocate, bus_open_wrapped
         if self.bus is not None:
-            if bus_close_wrapped(self.bus) == -1:
-                raise self.__oserror()
+            (r, e) = bus_close_wrapped(self.bus)
+            if r == -1:
+                raise self.__oserror(e)
         else:
-            self.bus = bus_allocate()
+            (self.bus, e) = bus_allocate()
             if self.bus == 0:
-                raise self.__oserror()
-        if bus_open_wrapped(self.bus, self.pathname, flags) == -1:
-            raise self.__oserror()
+                raise self.__oserror(e)
+        (r, e) = bus_open_wrapped(self.bus, self.pathname, flags)
+        if r == -1:
+            raise self.__oserror(e)
     
     
     def close(self):
@@ -131,8 +134,9 @@ class Bus:
         except:
             return
         if self.bus is not None:
-            if bus_close_wrapped(self.bus) == -1:
-                raise self.__oserror()
+            (r, e) = bus_close_wrapped(self.bus)
+            if r == -1:
+                raise self.__oserror(e)
             bus_deallocate(self.bus)
             self.bus = None
     
@@ -147,8 +151,9 @@ class Bus:
                              if there is another process attempting to broadcast on the bus
         '''
         from native_bus import bus_write_wrapped
-        if bus_write_wrapped(self.bus, message, flags) == -1:
-            raise self.__oserror()
+        (r, e) = bus_write_wrapped(self.bus, message, flags)
+        if r == -1:
+            raise self.__oserror(e)
     
     
     def read(self, callback : callable, user_data = None):
@@ -193,8 +198,9 @@ class Bus:
                             `Bus.poll` is called
         '''
         from native_bus import bus_poll_start_wrapped
-        if bus_poll_start_wrapped(self.bus, flags) == -1:
-            raise self.__oserror()
+        (r, e) = bus_poll_start_wrapped(self.bus, flags)
+        if r == -1:
+            raise self.__oserror(e)
     
     
     def poll_stop(self):
@@ -204,8 +210,9 @@ class Bus:
         to wait indefinitely.
         '''
         from native_bus import bus_poll_stop_wrapped
-        if bus_poll_stop_wrapped(self.bus) == -1:
-            raise self.__oserror()
+        (r, e) = bus_poll_stop_wrapped(self.bus)
+        if r == -1:
+            raise self.__oserror(e)
     
     
     def poll(self) -> bytes:
@@ -221,9 +228,9 @@ class Bus:
                          NB! The received message will not be decoded from UTF-8
         '''
         from native_bus import bus_poll_wrapped
-        message = bus_poll_wrapped(self.bus)
+        (message, e) = bus_poll_wrapped(self.bus)
         if message is None:
-            raise self.__oserror()
+            raise self.__oserror(e)
         return message
     
     
@@ -237,8 +244,9 @@ class Bus:
         @param  group:int  The group ID of the bus's new group
         '''
         from native_bus import bus_chown_wrapped
-        if bus_chown_wrapped(self.pathname, owner, group) == -1:
-            raise self.__oserror()
+        (r, e) = bus_chown_wrapped(self.pathname, owner, group)
+        if r == -1:
+            raise self.__oserror(e)
     
     
     def chmod(self, mode : int):
@@ -252,18 +260,19 @@ class Bus:
                           edit the bus's associated file
         '''
         from native_bus import bus_chmod_wrapped
-        if bus_chmod_wrapped(self.pathname, mode) == -1:
-            raise self.__oserror()
+        (r, e) = bus_chmod_wrapped(self.pathname, mode)
+        if r == -1:
+            raise self.__oserror(e)
     
     
-    def __oserror(self):
+    def __oserror(self, err : int):
         '''
         Create an OSError
         
+        @param   err:int   The value of errno
         @return  :OSError  The OS error
         '''
-        import os, ctypes
-        err = ctypes.get_errno()
+        import os
         err = OSError(err, os.strerror(err))
         if err.errno == os.errno.ENOENT:
             err.filename = self.pathname
