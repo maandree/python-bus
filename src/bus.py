@@ -57,7 +57,7 @@ class Bus:
     
     NOWAIT = 1
     '''
-    Function shall fail with errno set to `EAGAIN`
+    Function shall fail with `os.errno.EAGAIN`
     if the it would block and this flag is used
     '''
     
@@ -141,9 +141,10 @@ class Bus:
         '''
         Broadcast a message a bus
         
-        @param  message:str  The message to write, may not be longer than 2047 bytes after UTF-8 encoding
-        @param  flags:int    `Bus.NOWAIT` if the function shall fail if there is another process attempting
-                             to broadcast on the bus
+        @param  message:str  The message to write, may not be longer than 2047 bytes
+                             after UTF-8 encoding
+        @param  flags:int    `Bus.NOWAIT` if the function shall fail with `os.errno.EAGAIN`
+                             if there is another process attempting to broadcast on the bus
         '''
         from native_bus import bus_write_wrapped
         if bus_write_wrapped(self.bus, message, flags) == -1:
@@ -175,6 +176,80 @@ class Bus:
         '''
         from native_bus import bus_read_wrapped
         if bus_read_wrapped(self.bus, callback, user_data) == -1:
+            raise self.__oserror()
+    
+    
+    def poll_start(self, flags : int = 0):
+        '''
+        Announce that the thread is listening on the bus.
+        This is required so the will does not miss any
+        messages due to race conditions. Additionally,
+        not calling this function will cause the bus the
+        misbehave, is `Bus.poll` is written to expect
+        this function to have been called.
+        
+        @param   flags:int  `Bus.NOWAIT` if the bus should fail with `os.errno.EAGAIN`
+                            if there isn't already a message available on the bus when
+                            `Bus.poll` is called
+        '''
+        from native_bus import bus_poll_start_wrapped
+        if bus_poll_start_wrapped(self.bus, flags) == -1:
+            raise self.__oserror()
+    
+    
+    def poll_stop(self):
+        '''
+        Announce that the thread has stopped listening on the bus.
+        This is required so that the thread does not cause others
+        to wait indefinitely.
+        '''
+        from native_bus import bus_poll_stop_wrapped
+        if bus_poll_stop_wrapped(self.bus) == -1:
+            raise self.__oserror()
+    
+    
+    def poll(self) -> str:
+        '''
+        Wait for a message to be broadcasted on the bus.
+        The caller should make a copy of the received message,
+        without freeing the original copy, and parse it in a
+        separate thread. When the new thread has started be
+        started, the caller of this function should then
+        either call `Bus.poll` again or `Bus.poll_stop`.
+        
+        @return  :str  The received message
+        '''
+        from native_bus import bus_poll_wrapped
+        if bus_poll_wrapped(self.bus) == None:
+            raise self.__oserror()
+    
+    
+    def chown(self, owner : int, group : int):
+        '''
+        Change the ownership of a bus
+        
+        `os.stat` can be used of the bus's associated file to get the bus's ownership
+        
+        @param  owner:int  The user ID of the bus's new owner
+        @param  group:int  The group ID of the bus's new group
+        '''
+        from native_bus import bus_chown_wrapped
+        if bus_chown_wrapped(self.pathname, owner, group) == -1:
+            raise self.__oserror()
+    
+    
+    def chmod(self, mode : int):
+        '''
+        Change the permissions for a bus
+        
+        `os.stat` can be used of the bus's associated file to get the bus's permissions
+        
+        @param  mode:int  The permissions of the bus, any permission for a user implies
+                          full permissions for that user, except only the owner may
+                          edit the bus's associated file
+        '''
+        from native_bus import bus_chmod_wrapped
+        if bus_chmod_wrapped(self.pathname, mode) == -1:
             raise self.__oserror()
     
     
