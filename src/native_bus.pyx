@@ -68,13 +68,15 @@ Close a bus
 @return       0 on success, -1 on error
 '''
 
-cdef extern int bus_write(long, const char *)
+cdef extern int bus_write(long, const char *, int)
 '''
 Broadcast a message a bus
 
 @param   bus      Bus information
 @param   message  The message to write, may not be longer than
                   `BUS_MEMORY_SIZE` including the NUL-termination
+@param   flags    `BUS_NOWAIT` fail if other process is attempting
+                  to write
 @return           0 on success, -1 on error
 '''
 
@@ -184,20 +186,22 @@ def bus_close_wrapped(bus : int) -> int:
     return bus_close(<long>bus)
 
 
-def bus_write_wrapped(bus : int, message : str) -> int:
+def bus_write_wrapped(bus : int, message : str, flags : int) -> int:
     '''
     Broadcast a message a bus
     
     @param   bus      Bus information
     @param   message  The message to write, may not be longer than
                       `BUS_MEMORY_SIZE` including the NUL-termination
+    @param   flags    `BUS_NOWAIT` fail if other process is attempting
+                      to write
     @return           0 on success, -1 on error
     '''
     cdef const char* cmessage
     cdef bytes bs
     bs = message.encode('utf-8') + bytes([0])
     cmessage = bs
-    return bus_write(<long>bus, cmessage)
+    return bus_write(<long>bus, cmessage, <int>flags)
 
 
 cdef int bus_callback_wrapper(const char *message, user_data):

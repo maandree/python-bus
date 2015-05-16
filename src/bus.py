@@ -55,6 +55,12 @@ class Bus:
     Fail if interrupted
     '''
     
+    NOWAIT = 1
+    '''
+    Function shall fail with errno set to `EAGAIN`
+    if the it would block and this flag is used
+    '''
+    
     
     def __init__(self, pathname : str = None):
         '''
@@ -131,14 +137,16 @@ class Bus:
             self.bus = None
     
     
-    def write(self, message : str):
+    def write(self, message : str, flags : int = 0):
         '''
         Broadcast a message a bus
         
         @param  message:str  The message to write, may not be longer than 2047 bytes after UTF-8 encoding
+        @param  flags:int    `Bus.NOWAIT` if the function shall fail if there is another process attempting
+                             to broadcast on the bus
         '''
         from native_bus import bus_write_wrapped
-        if bus_write_wrapped(self.bus, message) == -1:
+        if bus_write_wrapped(self.bus, message, flags) == -1:
             raise self.__oserror()
     
     
