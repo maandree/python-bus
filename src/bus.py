@@ -208,7 +208,7 @@ class Bus:
             raise self.__oserror()
     
     
-    def poll(self) -> str:
+    def poll(self) -> bytes:
         '''
         Wait for a message to be broadcasted on the bus.
         The caller should make a copy of the received message,
@@ -217,11 +217,14 @@ class Bus:
         started, the caller of this function should then
         either call `Bus.poll` again or `Bus.poll_stop`.
         
-        @return  :str  The received message
+        @return  :bytes  The received message
+                         NB! The received message will not be decoded from UTF-8
         '''
         from native_bus import bus_poll_wrapped
-        if bus_poll_wrapped(self.bus) == None:
+        message = bus_poll_wrapped(self.bus)
+        if message is None:
             raise self.__oserror()
+        return message
     
     
     def chown(self, owner : int, group : int):

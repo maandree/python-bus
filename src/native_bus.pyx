@@ -332,7 +332,7 @@ def bus_poll_stop_wrapped(bus : int) -> int:
     return bus_poll_stop(<long>bus)
 
 
-def bus_poll_wrapped(bus : int) -> str:
+def bus_poll_wrapped(bus : int) -> bytes:
     '''
     Wait for a message to be broadcasted on the bus.
     The caller should make a copy of the received message,
@@ -351,7 +351,7 @@ def bus_poll_wrapped(bus : int) -> str:
     if msg is NULL:
         return None
     bs = msg
-    return bs.decode('utf-8', 'strict')
+    return bs
 
 
 def bus_chown_wrapped(file : str, owner : int, group : int) -> int:
