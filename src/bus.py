@@ -184,7 +184,7 @@ class Bus:
             raise self.__oserror()
     
     
-    def poll_start(self, flags : int = 0):
+    def poll_start(self):
         '''
         Announce that the thread is listening on the bus.
         This is required so the will does not miss any
@@ -192,13 +192,9 @@ class Bus:
         not calling this function will cause the bus the
         misbehave, is `Bus.poll` is written to expect
         this function to have been called.
-        
-        @param   flags:int  `Bus.NOWAIT` if the bus should fail with `os.errno.EAGAIN`
-                            if there isn't already a message available on the bus when
-                            `Bus.poll` is called
         '''
         from native_bus import bus_poll_start_wrapped
-        (r, e) = bus_poll_start_wrapped(self.bus, flags)
+        (r, e) = bus_poll_start_wrapped(self.bus)
         if r == -1:
             raise self.__oserror(e)
     
@@ -215,7 +211,7 @@ class Bus:
             raise self.__oserror(e)
     
     
-    def poll(self) -> bytes:
+    def poll(self, flags : int = 0) -> bytes:
         '''
         Wait for a message to be broadcasted on the bus.
         The caller should make a copy of the received message,
@@ -224,11 +220,13 @@ class Bus:
         started, the caller of this function should then
         either call `Bus.poll` again or `Bus.poll_stop`.
         
-        @return  :bytes  The received message
-                         NB! The received message will not be decoded from UTF-8
+        @param   flags:int  `Bus.NOWAIT` if the bus should fail with `os.errno.EAGAIN`
+                            if there isn't already a message available on the bus
+        @return  :bytes     The received message
+                            NB! The received message will not be decoded from UTF-8
         '''
         from native_bus import bus_poll_wrapped
-        (message, e) = bus_poll_wrapped(self.bus)
+        (message, e) = bus_poll_wrapped(self.bus, flags)
         if message is None:
             raise self.__oserror(e)
         return message

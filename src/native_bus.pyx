@@ -100,7 +100,7 @@ Listen (in a loop, forever) for new message on a bus
 @return            0 on success, -1 on error
 '''
 
-cdef extern int bus_poll_start(long, int)
+cdef extern int bus_poll_start(long)
 '''
 Announce that the thread is listening on the bus.
 This is required so the will does not miss any
@@ -109,11 +109,8 @@ not calling this function will cause the bus the
 misbehave, is `bus_poll` is written to expect
 this function to have been called.
 
-@param   bus    Bus information
-@param   flags  `BUS_NOWAIT` if the bus should fail and set `errno` to
-                `EAGAIN` if there isn't already a message available on
-                the bus when `bus_poll` is called
-@return         0 on success, -1 on error
+@param   bus  Bus information
+@return       0 on success, -1 on error
 '''
 
 cdef extern int bus_poll_stop(long)
@@ -126,7 +123,7 @@ to wait indefinitely.
 @return       0 on success, -1 on error
 '''
 
-cdef extern const char *bus_poll(long)
+cdef extern const char *bus_poll(long, int)
 '''
 Wait for a message to be broadcasted on the bus.
 The caller should make a copy of the received message,
@@ -135,8 +132,10 @@ separate thread. When the new thread has started be
 started, the caller of this function should then
 either call `bus_poll` again or `bus_poll_stop`.
 
-@param   bus  Bus information
-@return       The received message, `NULL` on error
+@param   bus    Bus information
+@param   flags  `BUS_NOWAIT` if the bus should fail and set `errno` to
+                `EAGAIN` if there isn't already a message available on the bus
+@return         The received message, `NULL` on error
 '''
 
 cdef extern int bus_chown(const char *, uid_t, gid_t)
@@ -323,7 +322,7 @@ def bus_read_wrapped(bus : int, callback : callable, user_data) -> tuple:
     return (r, e)
 
 
-def bus_poll_start_wrapped(bus : int, flags : int) -> tuple:
+def bus_poll_start_wrapped(bus : int) -> tuple:
     '''
     Announce that the thread is listening on the bus.
     This is required so the will does not miss any
@@ -333,14 +332,10 @@ def bus_poll_start_wrapped(bus : int, flags : int) -> tuple:
     this function to have been called.
     
     @param   bus:int    Bus information
-    @param   flags:int  `BUS_NOWAIT` if the bus should fail and set `errno` to
-                        `os.errno.EAGAIN` if there isn't already a message
-                        available on
-                        the bus when `bus_poll` is called
     @return  :int       0 on success, -1 on error
     @return  :int       The value of `errno`
     '''
-    r = bus_poll_start(<long>bus, <int>flags)
+    r = bus_poll_start(<long>bus)
     e = errno
     return (r, e)
 
@@ -360,7 +355,7 @@ def bus_poll_stop_wrapped(bus : int) -> tuple:
     return (r, e)
 
 
-def bus_poll_wrapped(bus : int) -> tuple:
+def bus_poll_wrapped(bus : int, flags : int) -> tuple:
     '''
     Wait for a message to be broadcasted on the bus.
     The caller should make a copy of the received message,
@@ -370,13 +365,16 @@ def bus_poll_wrapped(bus : int) -> tuple:
     either call `bus_poll_wrapped` again or
     `bus_poll_stop_wrapped`.
     
-    @param   bus::int  Bus information
-    @return  :bytes    The received message, `None` on error
-    @return  :int      The value of `errno`
+    @param   bus::int   Bus information
+    @param   flags:int  `BUS_NOWAIT` if the bus should fail and set `errno`
+                        to `os.errno.EAGAIN` if there isn't already a message
+                        available on the bus
+    @return  :bytes     The received message, `None` on error
+    @return  :int       The value of `errno`
     '''
     cdef const char* msg
     cdef bytes bs
-    msg = bus_poll(<long>bus)
+    msg = bus_poll(<long>bus, <int>flags)
     e = errno
     if msg is NULL:
         return (None, e)
