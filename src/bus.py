@@ -172,7 +172,7 @@ class Bus:
         if clock_id is None:
             import time
             clock_id = time.CLOCK_MONOTONIC_RAW
-            timeout += timeout.clock_gettime(clock_id)
+            timeout += time.clock_gettime(clock_id)
         (r, e) = bus_write_timed_wrapped(self.bus, message, timeout, clock_id)
         if r == -1:
             raise self.__oserror(e)
@@ -242,7 +242,7 @@ class Bus:
         if clock_id is None:
             import time
             clock_id = time.CLOCK_MONOTONIC_RAW
-            timeout += timeout.clock_gettime(clock_id)
+            timeout += time.clock_gettime(clock_id)
         (r, e) = bus_read_timed_wrapped(self.bus, callback, user_data, timeout, clock_id)
         if r == -1:
             raise self.__oserror(e)
@@ -317,7 +317,7 @@ class Bus:
         if clock_id is None:
             import time
             clock_id = time.CLOCK_MONOTONIC_RAW
-            timeout += timeout.clock_gettime(clock_id)
+            timeout += time.clock_gettime(clock_id)
         (message, e) = bus_poll_timed_wrapped(self.bus, timeout, clock_id)
         if message is None:
             raise self.__oserror(e)
