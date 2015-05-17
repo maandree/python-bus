@@ -156,32 +156,96 @@ class Bus:
             raise self.__oserror(e)
     
     
+    def write_timed(self, message : str, timeout : float, clock_id : int = None):
+        '''
+        Broadcast a message a bus
+        
+        @param  message:str    The message to write, may not be longer than 2047 bytes
+                               after UTF-8 encoding
+        @param  timeout:float  The time the function shall fail with `os.errno.EAGAIN`,
+                               if it has not already completed
+        @param  clock_id:int?  The clock `timeout` is measured in, it must be a
+                               predictable clock, if `None`, `timeout` is measured in
+                               relative time instead of absolute time
+        '''
+        from native_bus import bus_write_timed_wrapped
+        if clock_id is None:
+            import time
+            clock_id = time.CLOCK_MONOTONIC_RAW
+            timeout += timeout.clock_gettime(clock_id)
+        (r, e) = bus_write_timed_wrapped(self.bus, message, timeout, clock_id)
+        if r == -1:
+            raise self.__oserror(e)
+    
+    
     def read(self, callback : callable, user_data = None):
         '''
         Listen (in a loop, forever) for new message on a bus
         
-        @param   callback  Function to call when a message is received, the
-                           input parameters will be the read message and
-                           `user_data` from the function's [`Bus.read`] parameter
-                           with the same name. The message must have been parsed
-                           or copied when `callback` returns as it may be over
-                           overridden after that time. `callback` should
-                           return either of the the values:
-                             0:  stop listening
-                             1:  continue listening
-                             -1:  an error has occurred
-                           However, the function [`Bus.read`] will invoke
-                           `callback` with `message` set to `None` one time
-                           directly after it has started listening on the bus.
-                           This is to the the program now it can safely continue
-                           with any action that requires that the programs is
-                           listening on the bus.
-                           NB! The received message will not be decoded from UTF-8
-        @param  user_data  See description of `callback`
+        @param   callback:(message:str?, user_data:¿U?=user_data)→int
+                               Function to call when a message is received, the
+                               input parameters will be the read message and
+                               `user_data` from the function's [`Bus.read`] parameter
+                               with the same name. The message must have been parsed
+                               or copied when `callback` returns as it may be over
+                               overridden after that time. `callback` should
+                               return either of the the values:
+                                  0:  stop listening
+                                  1:  continue listening
+                                 -1:  an error has occurred
+                               However, the function [`Bus.read`] will invoke
+                               `callback` with `message` set to `None` one time
+                               directly after it has started listening on the bus.
+                               This is to the the program now it can safely continue
+                               with any action that requires that the programs is
+                               listening on the bus.
+                               NB! The received message will not be decoded from UTF-8
+        @param  user_data:¿U?  See description of `callback`
         '''
         from native_bus import bus_read_wrapped
-        if bus_read_wrapped(self.bus, callback, user_data) == -1:
-            raise self.__oserror()
+        (r, e) = bus_read_wrapped(self.bus, callback, user_data)
+        if r == -1:
+            raise self.__oserror(e)
+    
+    
+    def read_timed(self, callback : callable, timeout : float, clock_id : int = None, user_data = None):
+        '''
+        Listen (in a loop, forever) for new message on a bus
+        
+        @param   callback:(message:str?, user_data:¿U?=user_data)→int
+                               Function to call when a message is received, the
+                               input parameters will be the read message and
+                               `user_data` from the function's [`Bus.read`] parameter
+                               with the same name. The message must have been parsed
+                               or copied when `callback` returns as it may be over
+                               overridden after that time. `callback` should
+                               return either of the the values:
+                                  0:  stop listening
+                                  1:  continue listening
+                                 -1:  an error has occurred
+                               However, the function [`Bus.read`] will invoke
+                               `callback` with `message` set to `None` one time
+                               directly after it has started listening on the bus.
+                               This is to the the program now it can safely continue
+                               with any action that requires that the programs is
+                               listening on the bus.
+                               NB! The received message will not be decoded from UTF-8
+        @param  timeout:float  The time the function shall fail with `os.errno.EAGAIN`,
+                               if it has not already completed, note that the callback
+                               function may or may not have been called
+        @param  clock_id:int?  The clock `timeout` is measured in, it must be a
+                               predictable clock, if `None`, `timeout` is measured in
+                               relative time instead of absolute time
+        @param  user_data:¿U?  See description of `callback`
+        '''
+        from native_bus import bus_read_timed_wrapped
+        if clock_id is None:
+            import time
+            clock_id = time.CLOCK_MONOTONIC_RAW
+            timeout += timeout.clock_gettime(clock_id)
+        (r, e) = bus_read_timed_wrapped(self.bus, callback, user_data, timeout, clock_id)
+        if r == -1:
+            raise self.__oserror(e)
     
     
     def poll_start(self):
@@ -227,6 +291,34 @@ class Bus:
         '''
         from native_bus import bus_poll_wrapped
         (message, e) = bus_poll_wrapped(self.bus, flags)
+        if message is None:
+            raise self.__oserror(e)
+        return message
+    
+    
+    def poll_timed(self, timeout : float, clock_id : int = None) -> bytes:
+        '''
+        Wait for a message to be broadcasted on the bus.
+        The caller should make a copy of the received message,
+        without freeing the original copy, and parse it in a
+        separate thread. When the new thread has started be
+        started, the caller of this function should then
+        either call `Bus.poll_timed` again or `Bus.poll_stop`.
+        
+        @param   timeout:float  The time the function shall fail with `os.errno.EAGAIN`,
+                                if it has not already completed
+        @param   clock_id:int?  The clock `timeout` is measured in, it must be a
+                                predictable clock, if `None`, `timeout` is measured in
+                                relative time instead of absolute time
+        @return  :bytes         The received message
+                                NB! The received message will not be decoded from UTF-8
+        '''
+        from native_bus import bus_poll_timed_wrapped
+        if clock_id is None:
+            import time
+            clock_id = time.CLOCK_MONOTONIC_RAW
+            timeout += timeout.clock_gettime(clock_id)
+        (message, e) = bus_poll_timed_wrapped(self.bus, timeout, clock_id)
         if message is None:
             raise self.__oserror(e)
         return message

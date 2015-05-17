@@ -27,7 +27,12 @@ cimport cython
 
 from libc.stdlib cimport malloc, free
 from libc.errno cimport errno
-from posix.types cimport uid_t, gid_t, mode_t
+from posix.types cimport uid_t, gid_t, mode_t, clockid_t, time_t
+
+cdef struct timespec:
+    time_t tv_sec
+    long   tv_nsec
+ctypedef timespec timespec_t
 
 
 cdef extern int bus_create(const char *, int, char **)
@@ -82,22 +87,61 @@ Broadcast a message a bus
 @return           0 on success, -1 on error
 '''
 
+cdef extern int bus_write_timed(long, const char *, timespec_t *, clockid_t)
+'''
+Broadcast a message a bus
+
+@param   bus      Bus information
+@param   message  The message to write, may not be longer than
+                  `BUS_MEMORY_SIZE` including the NUL-termination
+@param   timeout  The time the operation shall fail with errno set
+                  to `EAGAIN` if not completed
+@param   clockid  The ID of the clock the `timeout` is measured with,
+                  it most be a predictable clock
+@return           0 on success, -1 on error
+'''
+
 cdef extern int bus_read(long, int (*)(const char *, void *), void *)
 '''
 Listen (in a loop, forever) for new message on a bus
 
-@param   bus       Bus information
-@param   callback  Function to call when a message is received, the
-                   input parameters will be the read message and
-                   `user_data` from `bus_read`'s parameter with the
-                   same name. The message must have been parsed or
-                   copied when `callback` returns as it may be over
-                   overridden after that time. `callback` should
-                   return either of the the values:
-                     0:  stop listening
-                     1:  continue listening
-                    -1:  an error has occurred
-@return            0 on success, -1 on error
+@param   bus         Bus information
+@param   callback    Function to call when a message is received, the
+                     input parameters will be the read message and
+                     `user_data` from `bus_read`'s parameter with the
+                     same name. The message must have been parsed or
+                     copied when `callback` returns as it may be over
+                     overridden after that time. `callback` should
+                     return either of the the values:
+                        0:  stop listening
+                        1:  continue listening
+                       -1:  an error has occurred
+@param   user_data   Parameter passed to `callback`
+@return              0 on success, -1 on error
+'''
+
+cdef extern int bus_read_timed(long, int (*)(const char *, void *), void *, timespec_t *, clockid_t)
+'''
+Listen (in a loop, forever) for new message on a bus
+
+@param   bus         Bus information
+@param   callback    Function to call when a message is received, the
+                     input parameters will be the read message and
+                     `user_data` from `bus_read`'s parameter with the
+                     same name. The message must have been parsed or
+                     copied when `callback` returns as it may be over
+                     overridden after that time. `callback` should
+                     return either of the the values:
+                        0:  stop listening
+                        1:  continue listening
+                       -1:  an error has occurred
+@param   user_data   Parameter passed to `callback`
+@param   timeout     The time the operation shall fail with errno set
+                     to `EAGAIN` if not completed, note that the callback
+                     function may or may not have been called
+@param   clockid     The ID of the clock the `timeout` is measured with,
+                     it most be a predictable clock
+@return              0 on success, -1 on error
 '''
 
 cdef extern int bus_poll_start(long)
@@ -136,6 +180,23 @@ either call `bus_poll` again or `bus_poll_stop`.
 @param   flags  `BUS_NOWAIT` if the bus should fail and set `errno` to
                 `EAGAIN` if there isn't already a message available on the bus
 @return         The received message, `NULL` on error
+'''
+
+cdef extern const char *bus_poll_timed(long, timespec_t *, clockid_t)
+'''
+Wait for a message to be broadcasted on the bus.
+The caller should make a copy of the received message,
+without freeing the original copy, and parse it in a
+separate thread. When the new thread has started be
+started, the caller of this function should then
+either call `bus_poll_timed` again or `bus_poll_stop`.
+
+@param   bus      Bus information
+@param   timeout  The time the operation shall fail with errno set
+                  to `EAGAIN` if not completed
+@param   clockid  The ID of the clock the `timeout` is measured with,
+                  it most be a predictable clock
+@return           The received message, `NULL` on error
 '''
 
 cdef extern int bus_chown(const char *, uid_t, gid_t)
@@ -288,6 +349,32 @@ def bus_write_wrapped(bus : int, message : str, flags : int) -> tuple:
     return (r, e)
 
 
+def bus_write_timed_wrapped(bus : int, message : str, timeout : float, clock_id : int) -> tuple:
+    '''
+    Broadcast a message a bus
+    
+    @param   bus:int        Bus information
+    @param   message:str    The message to write, may not be longer than
+                            `BUS_MEMORY_SIZE` including the NUL-termination
+    @param   timeout:float  The time the function shall fail with `os.errno.EAGAIN`,
+                            if it has not already completed
+    @param   clock_id:int   The clock `timeout` is measured in, it must be a
+                            predictable clock
+    @return  :int           0 on success, -1 on error
+    @return  :int           The value of `errno`
+    '''
+    cdef const char* cmessage
+    cdef bytes bs
+    cdef timespec_t timeout_spec
+    bs = message.encode('utf-8') + bytes([0])
+    cmessage = bs
+    timeout_spec.tv_sec = <time_t>int(timeout)
+    timeout_spec.tv_nsec = <long>int((timeout - int(timeout)) * 1000000000)
+    r = bus_write_timed(<long>bus, cmessage, &timeout_spec, <clockid_t>clock_id)
+    e = errno
+    return (r, e)
+
+
 cdef int bus_callback_wrapper(const char *message, user_data):
     cdef bytes bs
     callback, user_data = tuple(<object>user_data)
@@ -303,21 +390,56 @@ def bus_read_wrapped(bus : int, callback : callable, user_data) -> tuple:
     Listen (in a loop, forever) for new message on a bus
     
     @param   bus:int                   Bus information
-    @param   callback:(str?, ¿V?)→int  Function to call when a message is received, the
+    @param   callback:(str?, ¿U?)→int  Function to call when a message is received, the
                                        input parameters will be the read message and
                                        `user_data` from `bus_read`'s parameter with the
                                        same name. The message must have been parsed or
                                        copied when `callback` returns as it may be over
                                        overridden after that time. `callback` should
                                        return either of the the values:
-                                        0:  stop listening
-                                        1:  continue listening
-                                       -1:  an error has occurred
+                                          0:  stop listening
+                                          1:  continue listening
+                                         -1:  an error has occurred
+    @param   user_data:¿U?             Parameter passed to `callback`
     @return  :int                      0 on success, -1 on error
     @return  :int                      The value of `errno`
     '''
     user = (callback, user_data)
     r = bus_read(<long>bus, <int (*)(const char *, void *)>&bus_callback_wrapper, <void *>user)
+    e = errno
+    return (r, e)
+
+
+def bus_read_timed_wrapped(bus : int, callback : callable, user_data, timeout : float, clock_id : int) -> tuple:
+    '''
+    Listen (in a loop, forever) for new message on a bus
+    
+    @param   bus:int                   Bus information
+    @param   callback:(str?, ¿U?)→int  Function to call when a message is received, the
+                                       input parameters will be the read message and
+                                       `user_data` from `bus_read`'s parameter with the
+                                       same name. The message must have been parsed or
+                                       copied when `callback` returns as it may be over
+                                       overridden after that time. `callback` should
+                                       return either of the the values:
+                                          0:  stop listening
+                                          1:  continue listening
+                                         -1:  an error has occurred
+    @param   timeout:float             The time the function shall fail with `os.errno.EAGAIN`,
+                                       if it has not already completed, note that the callback
+                                       function may or may not have been called
+    @param   clock_id:int              The clock `timeout` is measured in, it must be a
+                                       predictable clock
+    @param   user_data:¿U?             Parameter passed to `callback`
+    @return  :int                      0 on success, -1 on error
+    @return  :int                      The value of `errno`
+    '''
+    cdef timespec_t timeout_spec
+    user = (callback, user_data)
+    timeout_spec.tv_sec = <time_t>int(timeout)
+    timeout_spec.tv_nsec = <long>int((timeout - int(timeout)) * 1000000000)
+    r = bus_read_timed(<long>bus, <int (*)(const char *, void *)>&bus_callback_wrapper,
+                       <void *>user, &timeout_spec, <clockid_t>clock_id)
     e = errno
     return (r, e)
 
@@ -365,7 +487,7 @@ def bus_poll_wrapped(bus : int, flags : int) -> tuple:
     either call `bus_poll_wrapped` again or
     `bus_poll_stop_wrapped`.
     
-    @param   bus::int   Bus information
+    @param   bus:int    Bus information
     @param   flags:int  `BUS_NOWAIT` if the bus should fail and set `errno`
                         to `os.errno.EAGAIN` if there isn't already a message
                         available on the bus
@@ -375,6 +497,37 @@ def bus_poll_wrapped(bus : int, flags : int) -> tuple:
     cdef const char* msg
     cdef bytes bs
     msg = bus_poll(<long>bus, <int>flags)
+    e = errno
+    if msg is NULL:
+        return (None, e)
+    bs = msg
+    return (bs, e)
+
+
+def bus_poll_timed_wrapped(bus : int, timeout : float, clock_id : int) -> tuple:
+    '''
+    Wait for a message to be broadcasted on the bus.
+    The caller should make a copy of the received message,
+    without freeing the original copy, and parse it in a
+    separate thread. When the new thread has started be
+    started, the caller of this function should then
+    either call `bus_poll_timed_wrapped` again or
+    `bus_poll_stop_wrapped`.
+    
+    @param   bus:int        Bus information
+    @param   timeout:float  The time the function shall fail with `os.errno.EAGAIN`,
+                            if it has not already completed
+    @param   clock_id:int   The clock `timeout` is measured in, it must be a
+                            predictable clock
+    @return  :bytes         The received message, `None` on error
+    @return  :int           The value of `errno`
+    '''
+    cdef const char* msg
+    cdef bytes bs
+    cdef timespec_t timeout_spec
+    timeout_spec.tv_sec = <time_t>int(timeout)
+    timeout_spec.tv_nsec = <long>int((timeout - int(timeout)) * 1000000000)
+    msg = bus_poll_timed(<long>bus, &timeout_spec, <clockid_t>clock_id)
     e = errno
     if msg is NULL:
         return (None, e)
