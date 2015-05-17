@@ -232,32 +232,50 @@ class Bus:
         return message
     
     
-    def chown(self, owner : int, group : int):
+    def chown(self, owner : int = None, group : int = None):
         '''
         Change the ownership of a bus
         
         `os.stat` can be used of the bus's associated file to get the bus's ownership
         
-        @param  owner:int  The user ID of the bus's new owner
-        @param  group:int  The group ID of the bus's new group
+        @param  owner:int?  The user ID of the bus's new owner, if `None`, keep current
+        @param  group:int?  The group ID of the bus's new group, if `None`, keep current
         '''
         from native_bus import bus_chown_wrapped
+        if (owner is None) or (group is None):
+            from os import stat
+            attr = stat(self.pathname)
+            if owner is None:  owner = attr.st_uid
+            if group is None:  group = attr.st_gid
         (r, e) = bus_chown_wrapped(self.pathname, owner, group)
         if r == -1:
             raise self.__oserror(e)
     
     
-    def chmod(self, mode : int):
+    def chmod(self, mode : int, mask : int = None):
         '''
         Change the permissions for a bus
         
         `os.stat` can be used of the bus's associated file to get the bus's permissions
         
-        @param  mode:int  The permissions of the bus, any permission for a user implies
-                          full permissions for that user, except only the owner may
-                          edit the bus's associated file
+        @param  mode:int   The permissions of the bus, any permission for a user implies
+                           full permissions for that user, except only the owner may
+                           edit the bus's associated file
+        @param  mask:int?  Bits to clear before setting the bits in `mode`, if `None`,
+                           all bits are cleared
         '''
         from native_bus import bus_chmod_wrapped
+        if mask is not None:
+            from os import stat
+            current = stat(self.pathname).st_mode
+            if current & 0o700:  current |= 0o700
+            if current &  0o70:  current |=  0o70
+            if current &   0o7:  current |=   0o7
+            if mask & 0o700:  mask |= 0o700
+            if mask &  0o70:  mask |=  0o70
+            if mask &   0o7:  mask |=   0o7
+            current &= ~mask
+            mode |= current
         (r, e) = bus_chmod_wrapped(self.pathname, mode)
         if r == -1:
             raise self.__oserror(e)
