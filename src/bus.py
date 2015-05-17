@@ -232,14 +232,16 @@ class Bus:
         return message
     
     
-    def chown(self, owner : int = None, group : int = None):
+    def chown(self, owner = None, group = None):
         '''
         Change the ownership of a bus
         
         `os.stat` can be used of the bus's associated file to get the bus's ownership
         
-        @param  owner:int?  The user ID of the bus's new owner, if `None`, keep current
-        @param  group:int?  The group ID of the bus's new group, if `None`, keep current
+        @param  owner:int|str?      The user ID or username of the bus's new owner,
+                                    if `None`, keep current
+        @param  group:int|str|...?  The group ID or groupname of the bus's new group,
+                                    if `None`, keep current, `...` to use the owner's group
         '''
         from native_bus import bus_chown_wrapped
         if (owner is None) or (group is None):
@@ -247,6 +249,15 @@ class Bus:
             attr = stat(self.pathname)
             if owner is None:  owner = attr.st_uid
             if group is None:  group = attr.st_gid
+        if isinstance(owner, str):
+            import pwd
+            owner = pwd.getpwnam(owner).pw_uid
+        if isinstance(group, str):
+            import grp
+            group = grp.getgrnam(group).gr_gid
+        elif group is ...:
+            import pwd
+            group = pwd.getpwuid(owner).pw_gid
         (r, e) = bus_chown_wrapped(self.pathname, owner, group)
         if r == -1:
             raise self.__oserror(e)
