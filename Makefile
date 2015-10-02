@@ -64,11 +64,19 @@ PYTHON_SRC = bus
 CYTHON_SRC = native_bus
 
 
+# Filename extension for -OO optimised python files
+ifeq ($(shell test $(PY_VER) -ge 35 ; echo $$?),0)
+PY_OPT2_EXT = opt-2.pyc
+else
+PY_OPT2_EXT = pyo
+endif
+
+
 
 all: pyc-files pyo-files so-files
 
 pyc-files: $(foreach M,${PYTHON_SRC},src/__pycache__/${M}.cpython-${PY_VER}.pyc)
-pyo-files: $(foreach M,${PYTHON_SRC},src/__pycache__/${M}.cpython-${PY_VER}.pyo)
+pyo-files: $(foreach M,${PYTHON_SRC},src/__pycache__/${M}.cpython-${PY_VER}.$(PY_OPT2_EXT))
 so-files: $(foreach M,${CYTHON_SRC},bin/${M}.so)
 
 bin/%.so: obj/%.o
@@ -88,7 +96,7 @@ obj/%.pyx: src/%.pyx
 src/__pycache__/%.cpython-$(PY_VER).pyc: src/%.py
 	${PYTHON} -m compileall $<
 
-src/__pycache__/%.cpython-$(PY_VER).pyo: src/%.py
+src/__pycache__/%.cpython-$(PY_VER).$(PY_OPT2_EXT): src/%.py
 	${PYTHON} -OO -m compileall $<
 
 
@@ -107,7 +115,7 @@ install-compiled: $(foreach M,$(PYTHON_SRC),src/__pycache__/$(M).cpython-$(PY_VE
 	install -dm755 -- "$(DESTDIR)$(PYTHONDIR)/__pycache__"
 	install -m644 $^ -- "$(DESTDIR)$(PYTHONDIR)/__pycache__"
 
-install-optimised: $(foreach M,$(PYTHON_SRC),src/__pycache__/$(M).cpython-$(PY_VER).pyo)
+install-optimised: $(foreach M,$(PYTHON_SRC),src/__pycache__/$(M).cpython-$(PY_VER).$(PY_OPT2_EXT))
 	install -dm755 -- "$(DESTDIR)$(PYTHONDIR)/__pycache__"
 	install -m644 $^ -- "$(DESTDIR)$(PYTHONDIR)/__pycache__"
 
@@ -126,7 +134,7 @@ install-license: LICENSE
 uninstall:
 	-rm -- "${DESTDIR}${LICENSEDIR}/${PKGNAME}/LICENSE"
 	-rmdir -- "${DESTDIR}${LICENSEDIR}/${PKGNAME}"
-	-rm -- $(foreach M,${PYTHON_SRC},"${DESTDIR}${PYTHONDIR}/__pycache__/${M}.cpython-${PY_VER}.pyo")
+	-rm -- $(foreach M,${PYTHON_SRC},"${DESTDIR}${PYTHONDIR}/__pycache__/${M}.cpython-${PY_VER}.$(PY_OPT2_EXT)")
 	-rm -- $(foreach M,${PYTHON_SRC},"${DESTDIR}${PYTHONDIR}/__pycache__/${M}.cpython-${PY_VER}.pyc")
 	-rm -- $(foreach M,${PYTHON_SRC},"${DESTDIR}${PYTHONDIR}/${M}.py")
 	-rm -- $(foreach M,${CYTHON_SRC},"${DESTDIR}${PYTHONDIR}/${M}.so")
