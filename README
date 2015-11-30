@@ -1,3 +1,12 @@
-Python 3 module for bus (https://github.com/maandree/bus),
-a simple daemonless system for broadcasting messages locally.
+NAME
+	python-bus - Python 3 module for bus
+
+DESCRIPTION
+	python-bus is a Python 3 wrapper for libbus, a library for
+	a simple daemonless system for broadcasting messages locally.
+
+SEE ALSO
+	libbus(7)
+
+	Full documentation available locally via the command help i python(1).
 
