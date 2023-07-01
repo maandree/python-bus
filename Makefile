@@ -13,7 +13,7 @@ all: native_bus.so
 	$(CC) -fPIC -c -o $@ $< $(CFLAGS) $(CPPFLAGS)
 
 .pyx.c:
-	if ! $(CYTHON) -$(PY_MAJOR) -v $< -o $@ ; then rm $@; false; fi
+	if ! $(CYTHON) -$(PYTHON_MAJOR) -v $< -o $@ ; then rm $@; false; fi
 
 install: native_bus.so
 	mkdir -p -- "$(DESTDIR)$(PYTHONPKGDIR)"
