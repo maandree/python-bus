@@ -13,7 +13,7 @@ cdef struct timespec:
 ctypedef timespec timespec_t
 
 
-cdef extern int bus_create(const char *, int, char **)
+cdef extern int bus_create(const char *, int, char **) noexcept
 '''
 Create a new bus
 
@@ -26,7 +26,7 @@ Create a new bus
 @return            0 on success, -1 on error
 '''
 
-cdef extern int bus_unlink(const char *)
+cdef extern int bus_unlink(const char *) noexcept
 '''
 Remove a bus
 
@@ -34,7 +34,7 @@ Remove a bus
 @return        0 on success, -1 on error
 '''
 
-cdef extern int bus_open(long, const char *, int)
+cdef extern int bus_open(long, const char *, int) noexcept
 '''
 Open an existing bus
 
@@ -45,7 +45,7 @@ Open an existing bus
 @return         0 on success, -1 on error
 '''
 
-cdef extern int bus_close(long)
+cdef extern int bus_close(long) noexcept
 '''
 Close a bus
 
@@ -53,7 +53,7 @@ Close a bus
 @return       0 on success, -1 on error
 '''
 
-cdef extern int bus_write(long, const char *, int)
+cdef extern int bus_write(long, const char *, int) noexcept
 '''
 Broadcast a message a bus
 
@@ -65,7 +65,7 @@ Broadcast a message a bus
 @return           0 on success, -1 on error
 '''
 
-cdef extern int bus_write_timed(long, const char *, timespec_t *, clockid_t)
+cdef extern int bus_write_timed(long, const char *, timespec_t *, clockid_t) noexcept
 '''
 Broadcast a message a bus
 
@@ -79,7 +79,7 @@ Broadcast a message a bus
 @return           0 on success, -1 on error
 '''
 
-cdef extern int bus_read(long, int (*)(const char *, void *), void *)
+cdef extern int bus_read(long, int (*)(const char *, void *), void *) noexcept
 '''
 Listen (in a loop, forever) for new message on a bus
 
@@ -98,7 +98,7 @@ Listen (in a loop, forever) for new message on a bus
 @return              0 on success, -1 on error
 '''
 
-cdef extern int bus_read_timed(long, int (*)(const char *, void *), void *, timespec_t *, clockid_t)
+cdef extern int bus_read_timed(long, int (*)(const char *, void *), void *, timespec_t *, clockid_t) noexcept
 '''
 Listen (in a loop, forever) for new message on a bus
 
@@ -122,7 +122,7 @@ Listen (in a loop, forever) for new message on a bus
 @return              0 on success, -1 on error
 '''
 
-cdef extern int bus_poll_start(long)
+cdef extern int bus_poll_start(long) noexcept
 '''
 Announce that the thread is listening on the bus.
 This is required so the will does not miss any
@@ -135,7 +135,7 @@ this function to have been called.
 @return       0 on success, -1 on error
 '''
 
-cdef extern int bus_poll_stop(long)
+cdef extern int bus_poll_stop(long) noexcept
 '''
 Announce that the thread has stopped listening on the bus.
 This is required so that the thread does not cause others
@@ -145,7 +145,7 @@ to wait indefinitely.
 @return       0 on success, -1 on error
 '''
 
-cdef extern const char *bus_poll(long, int)
+cdef extern const char *bus_poll(long, int) noexcept
 '''
 Wait for a message to be broadcasted on the bus.
 The caller should make a copy of the received message,
@@ -160,7 +160,7 @@ either call `bus_poll` again or `bus_poll_stop`.
 @return         The received message, `NULL` on error
 '''
 
-cdef extern const char *bus_poll_timed(long, timespec_t *, clockid_t)
+cdef extern const char *bus_poll_timed(long, timespec_t *, clockid_t) noexcept
 '''
 Wait for a message to be broadcasted on the bus.
 The caller should make a copy of the received message,
@@ -177,7 +177,7 @@ either call `bus_poll_timed` again or `bus_poll_stop`.
 @return           The received message, `NULL` on error
 '''
 
-cdef extern int bus_chown(const char *, uid_t, gid_t)
+cdef extern int bus_chown(const char *, uid_t, gid_t) noexcept
 '''
 Change the ownership of a bus
 
@@ -189,7 +189,7 @@ Change the ownership of a bus
 @return         0 on success, -1 on error
 '''
 
-cdef extern int bus_chmod(const char *, mode_t)
+cdef extern int bus_chmod(const char *, mode_t) noexcept
 '''
 Change the permissions for a bus
 
@@ -383,7 +383,7 @@ def bus_read_wrapped(bus : int, callback : callable, user_data) -> tuple:
     @return  :int                      The value of `errno`
     '''
     user = (callback, user_data)
-    r = bus_read(<long>bus, <int (*)(const char *, void *)>&bus_callback_wrapper, <void *>user)
+    r = bus_read(<long>bus, <int (*)(const char *, void *) noexcept>&bus_callback_wrapper, <void *>user)
     e = errno
     return (r, e)
 
@@ -416,7 +416,7 @@ def bus_read_timed_wrapped(bus : int, callback : callable, user_data, timeout : 
     user = (callback, user_data)
     timeout_spec.tv_sec = <time_t>int(timeout)
     timeout_spec.tv_nsec = <long>int((timeout - int(timeout)) * 1000000000)
-    r = bus_read_timed(<long>bus, <int (*)(const char *, void *)>&bus_callback_wrapper,
+    r = bus_read_timed(<long>bus, <int (*)(const char *, void *) noexcept>&bus_callback_wrapper,
                        <void *>user, &timeout_spec, <clockid_t>clock_id)
     e = errno
     return (r, e)
